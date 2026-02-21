@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NotebookLM - Flashcards Export</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+        :root {
+            --bg: #f6f1e7;
+            --bg-deep: #efe4d6;
+            --ink: #171717;
+            --muted: #5b5b5b;
+            --accent: #d3542c;
+            --accent-light: #ff8f5a;
+            --accent-dark: #b14320;
+            --teal: #1f6f78;
+            --card: #fff7ef;
+            --stroke: #e3d6c5;
+            --shadow: 0 18px 40px rgba(23, 23, 23, 0.12);
+            --radius-sm: 10px;
+            --radius-md: 12px;
+            --radius-lg: 14px;
+            --radius-xl: 18px;
+            --radius-2xl: 22px;
+            --space-1: 6px;
+            --space-2: 8px;
+            --space-3: 10px;
+            --space-4: 12px;
+            --space-5: 14px;
+            --space-6: 16px;
+            --space-7: 18px;
+            --space-8: 20px;
+            --space-9: 24px;
+            --space-10: 32px;
+            --font-display: 'Space Grotesk', sans-serif;
+            --font-body: 'IBM Plex Sans', sans-serif;
+        }
+
+        body {
+            font-family: var(--font-body);
+            background:
+                radial-gradient(240px 140px at 10% -10%, #ffd2b9 0%, transparent 70%),
+                radial-gradient(220px 160px at 90% 0%, #cfe7e6 0%, transparent 65%),
+                linear-gradient(180deg, var(--bg) 0%, var(--bg-deep) 100%);
+            color: var(--ink);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 640px;
+            padding: var(--space-8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            justify-content: center;
+        }
+
+        .card-container {
+            perspective: 1000px;
+            width: 100%;
+            height: 400px;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .card {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.6s cubic-bezier(0.4, 0.0, 0.2, 1);
+            border-radius: var(--radius-2xl);
+            box-shadow: var(--shadow);
+        }
+
+        .card.flipped {
+            transform: rotateY(180deg);
+        }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: var(--space-10);
+            box-sizing: border-box;
+            background-color: var(--card);
+            border: 1px solid var(--stroke);
+            border-radius: var(--radius-2xl);
+            text-align: center;
+            font-size: 1.35em;
+            line-height: 1.5;
+        }
+
+        .card-back {
+            transform: rotateY(180deg);
+            background-color: var(--card);
+        }
+
+        .card-content {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow-y: auto;
+            width: 100%;
+        }
+
+        .action-hint {
+            margin-top: var(--space-6);
+            font-size: 0.8rem;
+            color: var(--teal);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            pointer-events: none;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            max-width: 760px;
+            margin-top: var(--space-9);
+            padding: 0 var(--space-6);
+            gap: var(--space-8);
+        }
+
+        .nav-btn {
+            background: #fff;
+            border: 1px solid var(--stroke);
+            color: var(--ink);
+            width: 56px;
+            height: 56px;
+            border-radius: var(--radius-xl);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5em;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .nav-btn:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 18px rgba(23, 23, 23, 0.12);
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.3;
+            cursor: default;
+        }
+
+        .progress-bar {
+            flex: 1;
+            height: 6px;
+            background: var(--stroke);
+            border-radius: 3px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--accent-light));
+            border-radius: 2px;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            font-size: 1em;
+            color: var(--muted);
+            min-width: 60px;
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .top-hint {
+            position: absolute;
+            top: var(--space-6);
+            color: var(--muted);
+            font-size: 0.85em;
+        }
+
+        @media (max-width: 720px) {
+            .container {
+                padding: var(--space-7);
+            }
+
+            .card-container {
+                height: 360px;
+            }
+
+            .card-face {
+                padding: var(--space-8);
+                font-size: 1.2em;
+            }
+
+            .controls {
+                gap: var(--space-6);
+                padding: 0 var(--space-4);
+            }
+
+            .nav-btn {
+                width: 48px;
+                height: 48px;
+                font-size: 1.3em;
+            }
+        }
+
+        @media (max-width: 520px) {
+            body {
+                overflow: auto;
+            }
+
+            .container {
+                height: auto;
+                min-height: 100vh;
+            }
+
+            .card-container {
+                height: 320px;
+            }
+
+            .card-face {
+                padding: var(--space-6);
+                font-size: 1.1em;
+            }
+
+            .controls {
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: var(--space-4);
+            }
+
+            .progress-bar {
+                order: 3;
+                min-width: 100%;
+            }
+
+            .progress-text {
+                order: 2;
+            }
+
+            .top-hint {
+                position: static;
+                margin-bottom: var(--space-4);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="top-hint">Press "Space" to flip, "← / →" to navigate</div>
+    <div class="container">
+        <div class="card-container" onclick="flipCard()">
+            <div class="card" id="card">
+                <div class="card-face card-front">
+                    <div class="card-content" id="front-text"></div>
+                    <div class="action-hint">See answer</div>
+                </div>
+                <div class="card-face card-back">
+                    <div class="card-content" id="back-text"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="nav-btn" id="prev-btn" onclick="prevCard(event)">←</button>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill"></div>
+            </div>
+            <div class="progress-text" id="progress-text"></div>
+            <button class="nav-btn" id="next-btn" onclick="nextCard(event)">→</button>
+        </div>
+    </div>
+
+    <script>
+        const flashcards = [{"b":"El balance general, el estado de resultados, el estado de flujos de efectivo y el estado de cambios en el capital contable.","f":"¿Cuáles son los cuatro estados financieros básicos según el texto?"},{"b":"Una fotografía de la empresa a una fecha determinada.","f":"¿Qué metáfora se utiliza comúnmente para definir el balance o estado de situación financiera?"},{"b":"Documento que muestra la situación financiera de una entidad a una fecha determinada, detallando recursos y obligaciones.","f":"Concepto: Balance o estado de situación financiera."},{"b":"Propiedades que serán convertidas en dinero, vendidas o consumidas en un plazo de un año o menos.","f":"¿Cuál es la característica temporal que define a un activo a corto plazo o circulante?"},{"b":"Activos corrientes y activos no corrientes.","f":"¿Qué términos se utilizan en países como España para referirse a los activos circulantes y no circulantes?"},{"b":"Caja, bancos e inversiones en valores.","f":"Menciona tres ejemplos de activos a corto plazo o circulantes."},{"b":"Bienes tangibles propiedad de la entidad usados durante más de un año en su operación.","f":"¿Cómo se define el activo fijo (o propiedades, planta y equipo)?"},{"b":"Maquinaria, edificios y terrenos.","f":"Menciona tres ejemplos de activos fijos."},{"b":"El tiempo de su vida útil, siendo superior a un año para los activos diferidos.","f":"¿Cuál es la principal diferencia entre los pagos anticipados (circulante) y los activos diferidos?"},{"b":"Activos no circulantes intangibles que generan un beneficio o derecho en un plazo superior a un año.","f":"Concepto: Activo diferido."},{"b":"Patentes, marcas registradas y software.","f":"Menciona tres ejemplos de activos diferidos o intangibles."},{"b":"Cuando existen conceptos que no tienen características de circulante, fijo o diferido, como inversiones en subsidiarias.","f":"¿En qué casos una empresa suele abrir el grupo de 'otros activos'?"},{"b":"Exclusivamente en función del tiempo (corto y largo plazo).","f":"¿Cómo se clasifica el pasivo en el estado de situación financiera?"},{"b":"Un año o menos, contado a partir de la fecha del balance.","f":"¿Cuál es el plazo máximo para que una obligación se considere pasivo a corto plazo?"},{"b":"Proveedores, préstamos bancarios e impuestos por pagar.","f":"Menciona tres ejemplos de pasivo a corto plazo."},{"b":"Obligaciones de la entidad con vencimiento a más de un año a partir de la fecha del balance.","f":"Concepto: Pasivo a largo plazo."},{"b":"Capital contribuido y capital ganado.","f":"¿Cuáles son las dos divisiones principales del capital contable?"},{"b":"Las aportaciones de los dueños (capital social) y la prima en venta de acciones.","f":"¿Qué elementos integran el capital contribuido?"},{"b":"A las utilidades o pérdidas acumuladas de las actividades operativas y otros eventos que le afecten.","f":"¿A qué corresponde el capital ganado dentro de una entidad?"},{"b":"El estado de resultados es dinámico (muestra un periodo), mientras que el balance es estático (muestra una fecha).","f":"¿Cuál es la naturaleza del estado de resultados en comparación con el balance?"},{"b":"Estado que muestra los ingresos, gastos y la utilidad o pérdida neta resultante en un periodo dado.","f":"Definición: Estado de resultados según la NIF A-3."},{"b":"Estado de pérdidas y ganancias o estado de ingresos y egresos.","f":"¿Qué otros nombres recibe históricamente el estado de resultados?"},{"b":"Ventas totales menos rebajas y devoluciones sobre ventas.","f":"¿Cómo se calculan las ventas netas en el estado de resultados?"},{"b":"$Utilidad\\ bruta = Ventas\\ netas - Costo\\ de\\ ventas$","f":"¿Qué fórmula se utiliza para determinar la utilidad bruta?"},{"b":"Representa el precio de costo de los bienes vendidos o lo que costó a la empresa producirlos.","f":"Concepto: Costo de ventas."},{"b":"De acuerdo con su función (administración, venta) o de acuerdo con su naturaleza (sueldos, renta).","f":"¿Cuáles son los dos criterios principales para clasificar costos y gastos?"},{"b":"La suma de los gastos de venta y los gastos de administración.","f":"¿Qué incluyen los gastos de operación?"},{"b":"Comisiones de vendedores y publicidad.","f":"Menciona dos ejemplos de gastos de venta."},{"b":"Sueldos del personal de contabilidad y reparaciones del equipo de oficina.","f":"Menciona dos ejemplos de gastos de administración."},{"b":"Restando los gastos de operación (venta y administración) a la utilidad bruta.","f":"¿Cómo se obtiene la utilidad de operación?"},{"b":"Utilidad antes de financiamiento e impuesto sobre la renta.","f":"¿Qué significan las siglas UAFIR?"},{"b":"UAFIR (Earnings Before Interests and Taxes).","f":"La expresión EBIT es el sinónimo en inglés del término _____"},{"b":"Utilidad antes de financiamientos, impuesto sobre la renta, depreciación y amortización.","f":"¿Qué significan las siglas UAFIDA?"},{"b":"Intereses, comisiones bancarias y pérdidas cambiarias pagadas durante el periodo.","f":"Concepto: Gastos financieros."},{"b":"Ganancias derivadas de transacciones excepcionales que no corresponden a la actividad fundamental, como la venta de desperdicio.","f":"¿Qué son los 'otros productos' en el estado de resultados?"},{"b":"La utilidad (o pérdida) neta del ejercicio, que aparece al final del estado de resultados y bajo el capital ganado en el balance.","f":"¿Cuál es el vínculo directo entre el estado de resultados y el balance general?"},{"b":"Estado financiero básico que muestra las fuentes y aplicaciones del efectivo clasificadas en operación, inversión y financiamiento.","f":"Definición: Estado de flujos de efectivo según la NIF B-2."},{"b":"Actividades de operación, de inversión y de financiamiento.","f":"¿Cuáles son los tres tipos de actividades en los que se clasifica el flujo de efectivo?"},{"b":"Disminuciones en el activo, aumentos en el pasivo y aumentos en el capital.","f":"Menciona tres situaciones que representan 'recursos generados' (fuentes)."},{"b":"Porque es una utilidad que la empresa conserva al no representar una salida real de efectivo en el periodo.","f":"¿Por qué la depreciación se considera un recurso generado en el estado de flujos de efectivo?"},{"b":"Aumentos en el activo, disminuciones en el pasivo y pago de dividendos en efectivo.","f":"Menciona tres situaciones que representan 'aplicaciones o recursos utilizados'."},{"b":"Un $5\\%$ de la utilidad neta.","f":"¿Qué porcentaje de la utilidad neta debe separarse anualmente para formar la reserva legal?"},{"b":"Hasta llegar a una cifra igual al $20\\%$ del capital social.","f":"¿Hasta qué monto debe incrementarse la reserva legal según la Ley General de Sociedades Mercantiles?"},{"b":"Solo el dividendo en efectivo aparece en el estado de flujos de efectivo porque implica una salida real de recursos.","f":"¿Cuál es la diferencia entre un dividendo en efectivo y un dividendo en acciones para el estado de flujos de efectivo?"},{"b":"Capital social, utilidad (pérdida) del ejercicio, utilidad (pérdida) de ejercicios anteriores y reserva legal.","f":"¿Qué elementos integran el capital contable según su definición contable básica?"},{"b":"Creación de reserva legal y dividendos en acciones (capitalización de utilidades).","f":"Menciona dos movimientos internos del capital contable que no afectan el flujo de efectivo."},{"b":"Las variaciones o cambios en la inversión de los propietarios durante un periodo determinado.","f":"¿Qué muestra el estado de cambios en el capital contable?"},{"b":"Horizontal (matriz) y vertical.","f":"¿Cuáles son las dos formas de presentación del estado de cambios en el capital contable?"},{"b":"Porque 'ingresos y egresos' pueden confundirse con entradas y salidas de dinero en lugar de ganancias y pérdidas.","f":"¿Por qué no es conveniente llamar al estado de resultados 'estado de ingresos y egresos'?"},{"b":"Importe vendido de bienes o servicios sin IVA, restándole bonificaciones y devoluciones.","f":"Concepto: Ventas netas."},{"b":"La utilidad sobre la cual la asamblea no ha decidido un destino específico y se conserva como utilidades acumuladas.","f":"¿Qué constituye el remanente de la utilidad del ejercicio?"},{"b":"Al grupo de Otros Activos, presentándose usualmente en un renglón especial.","f":"¿A qué grupo pertenecen las inversiones en subsidiarias si son montos significativos?"},{"b":"En el activo circulante.","f":"En el balance, ¿dónde se clasifica un 'anticipo a proveedores'?"},{"b":"En el pasivo a corto plazo.","f":"En el balance, ¿dónde se clasifica un 'cobro anticipado'?"},{"b":"La diferencia entre el valor nominal de las acciones y el precio más alto pagado por el mercado.","f":"¿Qué es la 'prima en venta de acciones'?"}];
+        let currentIndex = 0;
+        let isFlipped = false;
+
+        const cardElement = document.getElementById('card');
+        const frontText = document.getElementById('front-text');
+        const backText = document.getElementById('back-text');
+        const progressFill = document.getElementById('progress-fill');
+        const progressText = document.getElementById('progress-text');
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+
+        function renderCard() {
+            if (isFlipped) {
+                cardElement.classList.remove('flipped');
+                isFlipped = false;
+                setTimeout(updateContent, 200); 
+            } else {
+                updateContent();
+            }
+        }
+
+        function updateContent() {
+             const card = flashcards[currentIndex];
+            frontText.textContent = card.f;
+            backText.textContent = card.b;
+            
+            const progress = ((currentIndex + 1) / flashcards.length) * 100;
+            progressFill.style.width = progress + '%';
+            progressText.textContent = `${currentIndex + 1} / ${flashcards.length}`;
+
+            prevBtn.disabled = currentIndex === 0;
+            nextBtn.disabled = currentIndex === flashcards.length - 1;
+        }
+
+        function flipCard() {
+            isFlipped = !isFlipped;
+            cardElement.classList.toggle('flipped');
+        }
+
+        function prevCard(e) {
+            e.stopPropagation();
+            if (currentIndex > 0) {
+                currentIndex--;
+                renderCard();
+            }
+        }
+
+        function nextCard(e) {
+            e.stopPropagation();
+            if (currentIndex < flashcards.length - 1) {
+                currentIndex++;
+                renderCard();
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                flipCard();
+            } else if (e.code === 'ArrowLeft') {
+                if (currentIndex > 0) {
+                    currentIndex--;
+                    renderCard();
+                }
+            } else if (e.code === 'ArrowRight') {
+                if (currentIndex < flashcards.length - 1) {
+                    currentIndex++;
+                    renderCard();
+                }
+            }
+        });
+
+        updateContent();
+    </script>
+</body>
+</html>
